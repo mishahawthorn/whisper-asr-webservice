@@ -1,52 +1,79 @@
 name: Publish Docker Image
+
 on:
   push:
-    tags:        
+    tags:
       - '*'
     branches:
+      - main
       - debug
 
 env:
-  DOCKER_USER: ${{secrets.DOCKER_USER}}
-  DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
-  REPO_NAME: ${{secrets.REPO_NAME}}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         include:
           - docker_file: Dockerfile
             platforms: linux/arm64,linux/amd64
+            tag_extension: ""
           - docker_file: Dockerfile.gpu
-            tag_extension: -gpu
             platforms: linux/amd64
+            tag_extension: "-gpu"
+          - docker_file: Dockerfile.openvino
+            platforms: linux/amd64
+            tag_extension: "-openvino"
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
     - name: Free up disk space
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /opt/ghc
         sudo rm -rf "/usr/local/share/boost"
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v3
+
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-    - name: Login to DockerHub
-      uses: docker/login-action@v1
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GHCR
+      uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USER }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-    - name: Build and Publish the Docker debug image
-      if: github.ref == 'refs/heads/debug'
-      run: |
-        DOCKER_IMAGE_DEBUG=$DOCKER_USER/$REPO_NAME:debug${{ matrix.tag_extension }}
-        docker buildx build . --no-cache --platform=${{ matrix.platforms }} -t "${DOCKER_IMAGE_DEBUG}" -f ${{ matrix.docker_file }} --push
-    - name: Build and Publish the Docker image
-      if: github.ref != 'refs/heads/debug'
-      run: |
-        DOCKER_IMAGE_LATEST=$DOCKER_USER/$REPO_NAME:latest${{ matrix.tag_extension }}
-        DOCKER_IMAGE_VERSION=$DOCKER_USER/$REPO_NAME:$GITHUB_REF_NAME${{ matrix.tag_extension }}
-        docker buildx build . --no-cache --platform=${{ matrix.platforms }} -t "${DOCKER_IMAGE_LATEST}" -t "${DOCKER_IMAGE_VERSION}" -f ${{ matrix.docker_file }} --push
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        flavor: |
+          suffix=${{ matrix.tag_extension }},onlatest=true
+        tags: |
+          type=ref,event=branch
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ${{ matrix.docker_file }}
+        platforms: ${{ matrix.platforms }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        no-cache: true

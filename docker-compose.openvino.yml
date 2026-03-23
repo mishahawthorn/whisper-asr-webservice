@@ -1,0 +1,24 @@
+version: "3.4"
+
+services:
+  whisper-asr-webservice-openvino:
+    build:
+      context: .
+      dockerfile: Dockerfile.openvino
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "109"
+    environment:
+      - ASR_MODEL=base
+      - ASR_ENGINE=openvino_whisper
+      - ASR_DEVICE=GPU
+      - ASR_QUANTIZATION=int8
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./app:/app/app
+      - cache-whisper:/root/.cache
+
+volumes:
+  cache-whisper:

@@ -44,6 +44,11 @@ cuda = [
     "torch (==2.7.1+cu126)",
     "torchaudio (==2.7.1+cu126)"
 ]
+openvino = [
+    "torch (==2.7.1)",
+    "torchaudio (==2.7.1)",
+    "optimum-intel[openvino] (>=1.22.0)",
+]
 
 [[tool.poetry.source]]
 name = "pytorch-cpu"
@@ -57,16 +62,18 @@ priority = "explicit"
 
 [tool.poetry.dependencies]
 torch = [
-    { markers = "extra == 'cpu' and extra != 'cuda' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cpu"},
-    { markers = "extra == 'cuda' and extra != 'cpu' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cuda"},
-    { markers = "extra == 'cpu' and extra != 'cuda' and sys_platform == 'darwin'", source = "pypi"},
-    { markers = "extra == 'cpu' and extra != 'cuda' and platform_machine == 'aarch64' and sys_platform != 'darwin'", source = "pypi"}
+    { markers = "extra == 'cpu' and extra != 'cuda' and extra != 'openvino' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cpu"},
+    { markers = "extra == 'cuda' and extra != 'cpu' and extra != 'openvino' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cuda"},
+    { markers = "extra == 'openvino' and extra != 'cpu' and extra != 'cuda' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cpu"},
+    { markers = "extra == 'cpu' and extra != 'cuda' and extra != 'openvino' and sys_platform == 'darwin'", source = "pypi"},
+    { markers = "extra == 'cpu' and extra != 'cuda' and extra != 'openvino' and platform_machine == 'aarch64' and sys_platform != 'darwin'", source = "pypi"}
  ]
 torchaudio = [
-    { markers = "extra == 'cpu' and extra != 'cuda' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cpu"},
-    { markers = "extra == 'cuda' and extra != 'cpu' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cuda"},
-    { markers = "extra == 'cpu' and extra != 'cuda' and sys_platform == 'darwin'", source = "pypi"},
-    { markers = "extra == 'cpu' and extra != 'cuda' and platform_machine == 'aarch64' and sys_platform != 'darwin'", source = "pypi"}
+    { markers = "extra == 'cpu' and extra != 'cuda' and extra != 'openvino' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cpu"},
+    { markers = "extra == 'cuda' and extra != 'cpu' and extra != 'openvino' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cuda"},
+    { markers = "extra == 'openvino' and extra != 'cpu' and extra != 'cuda' and platform_machine == 'x86_64' and sys_platform != 'darwin'", source = "pytorch-cpu"},
+    { markers = "extra == 'cpu' and extra != 'cuda' and extra != 'openvino' and sys_platform == 'darwin'", source = "pypi"},
+    { markers = "extra == 'cpu' and extra != 'cuda' and extra != 'openvino' and platform_machine == 'aarch64' and sys_platform != 'darwin'", source = "pypi"}
  ]
 
 
