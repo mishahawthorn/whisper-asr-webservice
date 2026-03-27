@@ -148,20 +148,39 @@ class OpenVINOWhisperASR(ASRModel):
             return_tensors="pt",
         ).input_features
 
+        tokenizer = self.processor.tokenizer
+        sot_token_id = tokenizer.convert_tokens_to_ids("<|startoftranscript|>")
+        # Collect all language token IDs from the tokenizer
+        lang_token_ids = [
+            tokenizer.convert_tokens_to_ids(f"<|{lang}|>")
+            for lang in whisper.tokenizer.LANGUAGES
+        ]
+
         with self.model_lock:
-            # Generate a single token with no forced language to let the model detect it
+            # Force <|startoftranscript|> as first decoder token, then let the model
+            # freely predict the language token at position 1.
             predicted_ids = self.model.generate(
                 input_features,
                 max_new_tokens=1,
+                decoder_input_ids=torch.tensor([[sot_token_id]]),
                 forced_decoder_ids=None,
                 return_dict_in_generate=True,
                 output_scores=True,
             )
 
-        # Extract language token (last token in the generated sequence)
+        # The generated token after <|startoftranscript|> should be the language token
         lang_token_id = predicted_ids.sequences[0, -1].item()
-        lang_token = self.processor.tokenizer.decode([lang_token_id])
+        lang_token = tokenizer.decode([lang_token_id])
         lang_code = lang_token.replace("<|", "").replace("|>", "").strip()
+
+        # Fallback: if the model still didn't produce a valid language token,
+        # pick the most likely language token from the scores
+        if lang_code not in whisper.tokenizer.LANGUAGES:
+            scores = predicted_ids.scores[0][0]
+            lang_scores = scores[lang_token_ids]
+            best_idx = lang_scores.argmax().item()
+            lang_code = list(whisper.tokenizer.LANGUAGES.keys())[best_idx]
+            lang_token_id = lang_token_ids[best_idx]
 
         # Compute confidence from logits
         scores = predicted_ids.scores[0][0]
